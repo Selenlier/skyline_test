@@ -27,48 +27,39 @@ public class GSkyline {
     Double[] whyNotPoint;
 
     public static void main(String[] args) {
-        List<Double[]> points = new ArrayList<>();
-        Double[] f1 = {1d, 300d};
-        points.add(f1);
-        Double[] f2 = {2d, 350d};
-        points.add(f2);
-        Double[] f3 = {2d, 150d};
-        points.add(f3);
-        Double[] f4 = {3.5d, 250d};
-        points.add(f4);
-        Double[] f5 = {4d, 50d};
-        points.add(f5);
-        Double[] f6 = {5d, 100d};
-        points.add(f6);
-        Double[] f7 = {6d, 200d};
-        points.add(f7);
-        Double[] f8 = {6.5d, 375d};
-        points.add(f8);
-        Double[] f9 = {7d, 300d};
-        points.add(f9);
-        Double[] f10 = {7d, 150d};
-        points.add(f10);
-
-        List<Double[]> range = new ArrayList<>();
-        Double[] a = {0.5d, 7d};
-        Double[] b = {50d, 375d};
-        range.add(a);
-        range.add(b);
 
         GSkyline skyline = new GSkyline();
-        points = skyline.norm(points, range);
-        range.get(0)[0] = 0d;
-        range.get(0)[1] = 1d;
-        range.get(1)[0] = 0d;
-        range.get(1)[1] = 1d;
+        final int k = 11;
+        final int n = 50;
+        List<List<Double[]>> returnList = skyline.data1(k, n);
+        List<Double[]> points = returnList.get(0);
+        List<Double[]> range = returnList.get(1);
 
+//      求得预排序表
         List<PT> preTableList = skyline.preTable(points);
-        GPR gpr = skyline.getSC(preTableList, preTableList.get(8));
+//        获取候选元组
+
+//        需要选取
+        PT w = preTableList.get(k);
+//        选取离父节点近的：为了使cost接近
+        for (int i = k; i < n - k; i++) {
+            PT temp_w = preTableList.get(i);
+            if (temp_w.getMaxPI() <= 2 * k && temp_w.MPIL == w.MPIL.intValue()) {
+                w = temp_w;
+                break;
+            }
+            if (temp_w.MPIL != w.MPIL.intValue()) {
+                break;
+            }
+        }
+
+        GPR gpr = skyline.getSC(preTableList, w);
         skyline.setWDM(gpr);
         HashMap<Double, PT> map = skyline.mwr(range, gpr, preTableList);
-        HashMap<Double, List<Integer>>  map2 = skyline.mwp(range, gpr, preTableList);
+        HashMap<Double, List<Integer>> map2 = skyline.mwp(range, gpr, preTableList);
         System.out.println(map.toString());
         System.out.println(map2.toString());
+        System.out.println(Arrays.toString(w.PI));
 
     }
 
@@ -94,8 +85,15 @@ public class GSkyline {
     }
 
     public HashMap<Double, PT> mwr(List<Double[]> range,
-                                  GPR gpr, List<PT> preTableList) {
+                                   GPR gpr, List<PT> preTableList) {
         PT ptAnswer = new PT();
+//        返回用
+        HashMap<Double, PT> map = new HashMap<>(1);
+//        如果w是skyline点，直接满足条件
+        if (gpr.WDM == null) {
+            map.put(0d, gpr.w);
+            return map;
+        }
 
         List<Integer> candidate = new ArrayList<>();
         int k = gpr.k - 1;
@@ -130,13 +128,22 @@ public class GSkyline {
                 ptAnswer = pt;
             }
         }
-        HashMap<Double, PT> map = new HashMap<>(1);
-        map.put(R2, ptAnswer);
+        double cost;
+        cost = (1 - R2);
+        map.put(cost, ptAnswer);
         return map;
     }
 
     public HashMap<Double, List<Integer>> mwp(List<Double[]> range,
                                               GPR gpr, List<PT> preTableList) {
+
+        HashMap<Double, List<Integer>> answerMap = new HashMap<>(1);
+        if (gpr.WDM == null) {
+            List<Integer> list = new ArrayList<>();
+            list.add(gpr.w.PIT);
+            answerMap.put(0d, list);
+            return answerMap;
+        }
 
         int k = gpr.k - 1;
 //        canList 是候选元组的集合，里面装的list是对应组合的PIT的组合
@@ -182,11 +189,11 @@ public class GSkyline {
         int tempK = k;
         while (miniList.isEmpty()) {
             for (List<Integer> list : canList) {
-                if (list.size() == k) {
+                if (list.size() == tempK) {
                     miniList.add(list);
                 }
             }
-            k--;
+            tempK--;
         }
 //        每种情况下求cost；
         for (List<Integer> list : miniList) {
@@ -219,8 +226,8 @@ public class GSkyline {
             List<Double[]> ctpPoints = new ArrayList<>();
             for (int i = 0; i < domainList.size() - 1; i++) {
                 Double[] a = new Double[2];
-                Double[] a1 = getPITValue(domainList.get(i + 1),preTableList);
-                Double[] a2 = getPITValue(domainList.get(i),preTableList);
+                Double[] a1 = getPITValue(domainList.get(i + 1), preTableList);
+                Double[] a2 = getPITValue(domainList.get(i), preTableList);
                 a[0] = a1[0];
                 a[1] = a2[1];
                 ctpPoints.add(a);
@@ -230,15 +237,18 @@ public class GSkyline {
             List<Double[]> cmpPoints = new ArrayList<>();
             Double[] b = new Double[2];
             List<PT> listPt = new ArrayList<>();
-            listPt.add(getPT(gpr.w.PIT,preTableList));
-            for (Integer i:
-                 domainList) {
-                listPt.add(getPT(i,preTableList));
+            listPt.add(getPT(gpr.w.PIT, preTableList));
+            for (Integer i :
+                    domainList) {
+                listPt.add(getPT(i, preTableList));
             }
             List<PT> list1 = listPt.stream().
                     sorted(Comparator.comparing(pt -> pt.A[0])).toList();
             for (int i = 0; i < list1.size(); i++) {
                 if (gpr.w.PIT == list1.get(i).PIT.intValue()) {
+                    if (i == 0) {
+                        continue;
+                    }
                     b[0] = gpr.w.A[0];
                     b[1] = list1.get(i - 1).A[1];
                     cmpPoints.add(b);
@@ -248,6 +258,9 @@ public class GSkyline {
                     sorted(Comparator.comparing(pt -> pt.A[1])).toList();
             for (int i = 0; i < list2.size(); i++) {
                 if (gpr.w.PIT == list2.get(i).PIT.intValue()) {
+                    if (i == 0) {
+                        continue;
+                    }
                     b[0] = list2.get(i - 1).A[0];
                     b[1] = gpr.w.A[1];
                     cmpPoints.add(b);
@@ -276,13 +289,11 @@ public class GSkyline {
             }
 
         }
-        HashMap<Double, List<Integer>> answerMap = new HashMap<>();
         answerMap.put(cost, answer);
 
         return answerMap;
 
     }
-
 
 
     /**
@@ -332,6 +343,14 @@ public class GSkyline {
         gpr.w = w;
         for (PT pt :
                 pts) {
+//            利用MH提前终止算法
+            if (gpr.MH != null) {
+                if (gpr.MH.size() == gpr.k) {
+                    if (gpr.MH_TOP < pt.MPIL) {
+                        return gpr;
+                    }
+                }
+            }
 //            SC若为空，则直接加入SC
             if (gpr.getSC() == null) {
                 List pg_list = new ArrayList<Integer>();
@@ -405,7 +424,7 @@ public class GSkyline {
             List<Integer> remove_list = new ArrayList<>();
             for (Integer s : gpr.SC.keySet()
             ) {
-                if (gpr.SC.get(s).size() >= gpr.k -1) {
+                if (gpr.SC.get(s).size() >= gpr.k - 1) {
                     remove_list.add(s);
                 }
             }
@@ -430,7 +449,13 @@ public class GSkyline {
     }
 
     public void setWDM(GPR gpr) {
+
         //        获取WDM
+//        如果wpg为空，WDM也为空
+        if (gpr.WPG == null) {
+            gpr.WDM = null;
+            return;
+        }
         for (Integer i : gpr.WPG.keySet()) {
             List<Integer> list = gpr.WPG.get(i);
             if (list.size() != 0) {
@@ -451,8 +476,8 @@ public class GSkyline {
     }
 
     public Double[] getPITValue(int pit, List<PT> preTable) {
-        for (PT p:
-             preTable) {
+        for (PT p :
+                preTable) {
             if (p.PIT == pit) {
                 return p.A;
             }
@@ -461,7 +486,7 @@ public class GSkyline {
     }
 
     public PT getPT(int pit, List<PT> preTable) {
-        for (PT p:
+        for (PT p :
                 preTable) {
             if (p.PIT == pit) {
                 return p;
@@ -476,6 +501,97 @@ public class GSkyline {
             point[1] = (point[1] - range.get(1)[0]) / (range.get(1)[1] - range.get(1)[0]);
         }
         return points;
+    }
+
+    public List<List<Double[]>> data0() {
+        List<List<Double[]>> returnList = new ArrayList<>();
+        List<Double[]> points = new ArrayList<>();
+        Double[] f1 = {1d, 300d};
+        points.add(f1);
+        Double[] f2 = {2d, 350d};
+        points.add(f2);
+        Double[] f3 = {2d, 150d};
+        points.add(f3);
+        Double[] f4 = {3.5d, 250d};
+        points.add(f4);
+        Double[] f5 = {4d, 50d};
+        points.add(f5);
+        Double[] f6 = {5d, 100d};
+        points.add(f6);
+        Double[] f7 = {6d, 200d};
+        points.add(f7);
+        Double[] f8 = {6.5d, 375d};
+        points.add(f8);
+        Double[] f9 = {7d, 300d};
+        points.add(f9);
+        Double[] f10 = {7d, 150d};
+        points.add(f10);
+
+        List<Double[]> range = new ArrayList<>();
+        Double[] a = {0.5d, 7d};
+        Double[] b = {50d, 375d};
+        range.add(a);
+        range.add(b);
+
+        GSkyline skyline = new GSkyline();
+        points = skyline.norm(points, range);
+        range.get(0)[0] = 0d;
+        range.get(0)[1] = 1d;
+        range.get(1)[0] = 0d;
+        range.get(1)[1] = 1d;
+
+        returnList.add(points);
+        returnList.add(range);
+        return returnList;
+    }
+
+    /**
+     * 生成自然数据
+     * @author li
+     * @date 9:45 2022/10/12
+     * @param k 支配w点的个数
+     * @param n 数据总量
+     **/
+    public List<List<Double[]>> data1(int k, int n) {
+        List<List<Double[]>> returnList = new ArrayList<>();
+        List<Double[]> points = new ArrayList<>();
+        List<Double[]> range = new ArrayList<>();
+//        range范围
+        Double[] a = {0.5d, 7d};
+        Double[] b = {50d, 375d};
+        range.add(a);
+        range.add(b);
+        double A = (range.get(0)[0] + range.get(0)[1] / 10);
+        double B = (range.get(1)[0] + range.get(1)[1] / 10);
+//        n个支配w的点
+        for (int i = 0; i < k; i++) {
+            Double[] point = new Double[2];
+
+            point[0] = Math.random() * (A - range.get(0)[0]) + range.get(0)[0];
+            point[1] = Math.random() * (B - range.get(1)[0]) + range.get(1)[0];
+            points.add(point);
+        }
+
+
+//        剩下n-k个
+        for (int i = 0; i < n - k; i++) {
+            Double[] point = new Double[2];
+            point[0] = Math.random() * (range.get(0)[1] - A) + A;
+            point[1] = Math.random() * (range.get(1)[1] - B) + B;
+            points.add(point);
+        }
+
+//        归一化处理
+        GSkyline skyline = new GSkyline();
+        points = skyline.norm(points, range);
+        range.get(0)[0] = 0d;
+        range.get(0)[1] = 1d;
+        range.get(1)[0] = 0d;
+        range.get(1)[1] = 1d;
+
+        returnList.add(points);
+        returnList.add(range);
+        return returnList;
     }
 }
 

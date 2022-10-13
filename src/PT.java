@@ -119,7 +119,7 @@ public class PT {
                 ", A=" + Arrays.toString(A) +
                 ", Ax=" + Ax +
                 ", PI=" + Arrays.toString(PI) +
-                ", minPI=" + minPI +
+                ", minPI=" + getMinPI() +
                 ", MPIL=" + MPIL +
                 '}';
     }
