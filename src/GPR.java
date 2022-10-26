@@ -13,7 +13,11 @@ public class GPR {
     int k;
 //    key = PIT编号号， value = 支配的点的PIT
     HashMap<Integer, List<Integer>> SC;
+//    w父元组：<a, a的父元组>
     HashMap<Integer, List<Integer>> WPG;
+//    <key, value> : key离o近则为true
+    HashMap<Integer, Boolean> nearO;
+//    w父元组： <a, a支配的元组>
     HashMap<Integer, List<Integer>> WDM;
     List<Integer> MH;
     Integer MH_TOP;
